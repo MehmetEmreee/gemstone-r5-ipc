@@ -1,6 +1,6 @@
 <div align="center">
 
-# gemstone-r5-ipc
+# T3-Gemstone-O1 Deterministik Motor Kontrolü
 
 **Linux ↔ Zephyr AMP köprüsü — TI AM67A (J722S) üzerinde gerçek zamanlı donanım kontrolü**
 
