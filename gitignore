@@ -1,0 +1,35 @@
+# Build ciktilari
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.obj
+*.a
+
+# Derlenmis Linux tarafi programi
+led_ctrl
+!led_ctrl.c
+
+# Zephyr
+.west/
+zephyr/
+modules/
+bootloader/
+tools/
+*.dts.pre
+*.dts.pre.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
