@@ -19,7 +19,10 @@ enum ipc_cmd_type {
 	CMD_MOTOR_STOP = 0x11,
 	CMD_MOTOR_GET  = 0x12,   /* mevcut pozisyon */
 	CMD_MOTOR_SPD  = 0x13,   /* value: adim arasi us (min ~1500) */
-	CMD_STATUS_GET = 0x20,
+	CMD_STATUS_GET = 0x30,
+	CMD_SERVO_SET  = 0x20,   /* value: aci 0-180 derece */
+	CMD_SERVO_GET  = 0x21,
+	CMD_SERVO_OFF  = 0x22,   /* pulse uretimini durdur */
 };
 
 /* Cevap kodlari */

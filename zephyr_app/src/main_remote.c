@@ -29,6 +29,7 @@
 #define MTR2_NODE DT_ALIAS(mtr2)
 #define MTR3_NODE DT_ALIAS(mtr3)
 #define MTR4_NODE DT_ALIAS(mtr4)
+#define SRV0_NODE DT_ALIAS(srv0)
 
 static const struct gpio_dt_spec mtr[4] = {
 	GPIO_DT_SPEC_GET(MTR1_NODE, gpios),
@@ -36,6 +37,8 @@ static const struct gpio_dt_spec mtr[4] = {
 	GPIO_DT_SPEC_GET(MTR3_NODE, gpios),
 	GPIO_DT_SPEC_GET(MTR4_NODE, gpios),
 };
+
+static const struct gpio_dt_spec servo = GPIO_DT_SPEC_GET(SRV0_NODE, gpios);
 
 #define LED0_NODE DT_ALIAS(led0)
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
@@ -171,6 +174,41 @@ static void motor_thread(void *a, void *b, void *c)
 	}
 }
 
+/* ---------------- Servo (SG90, yazilim PWM) ---------------- */
+
+#define SERVO_STACK_SIZE   1024
+#define SERVO_PERIOD_US    20000    /* 50 Hz */
+#define SERVO_MIN_US       500     /* 0 derece */
+#define SERVO_MAX_US       2500     /* 180 derece */
+
+K_THREAD_STACK_DEFINE(servo_stack, SERVO_STACK_SIZE);
+static struct k_thread servo_thread_data;
+
+static volatile int32_t servo_angle = -1;   /* -1 = kapali */
+
+static void servo_thread(void *a, void *b, void *c)
+{
+	ARG_UNUSED(a); ARG_UNUSED(b); ARG_UNUSED(c);
+
+	while (1) {
+		int32_t ang = servo_angle;
+
+		if (ang < 0) {
+			gpio_pin_set_dt(&servo, 0);
+			k_msleep(20);
+			continue;
+		}
+
+		uint32_t pulse = SERVO_MIN_US +
+			((SERVO_MAX_US - SERVO_MIN_US) * ang) / 180;
+
+		gpio_pin_set_dt(&servo, 1);
+		k_busy_wait(pulse);
+		gpio_pin_set_dt(&servo, 0);
+		k_usleep(SERVO_PERIOD_US - pulse);
+	}
+}
+
 
 static int handle_ping(const struct ipc_cmd *cmd, struct ipc_resp *resp)
 {
@@ -236,6 +274,33 @@ static int handle_motor_spd(const struct ipc_cmd *cmd, struct ipc_resp *resp)
 	return RESP_OK;
 }
 
+static int handle_servo_set(const struct ipc_cmd *cmd, struct ipc_resp *resp)
+{
+	if (cmd->value < 0 || cmd->value > 180)
+		return RESP_ERR_VALUE;
+
+	servo_angle = cmd->value;
+	resp->value = cmd->value;
+	LOG_INF("servo: %d derece", cmd->value);
+	return RESP_OK;
+}
+
+static int handle_servo_get(const struct ipc_cmd *cmd, struct ipc_resp *resp)
+{
+	ARG_UNUSED(cmd);
+	resp->value = servo_angle;
+	return RESP_OK;
+}
+
+static int handle_servo_off(const struct ipc_cmd *cmd, struct ipc_resp *resp)
+{
+	ARG_UNUSED(cmd);
+	servo_angle = -1;
+	resp->value = -1;
+	LOG_INF("servo kapali");
+	return RESP_OK;
+}
+
 /* ---------------- Komut tablosu ---------------- */
 
 struct cmd_entry {
@@ -251,6 +316,9 @@ static const struct cmd_entry cmd_table[] = {
 	{ CMD_MOTOR_STOP, handle_motor_stop },
 	{ CMD_MOTOR_GET,  handle_motor_get  },
 	{ CMD_MOTOR_SPD,  handle_motor_spd  },
+	{ CMD_SERVO_SET,  handle_servo_set  },
+	{ CMD_SERVO_GET,  handle_servo_get  },
+	{ CMD_SERVO_OFF,  handle_servo_off  },
 };
 
 static int dispatch(const struct ipc_cmd *cmd, struct ipc_resp *resp)
@@ -549,6 +617,13 @@ int main(void)
 		LOG_ERR("LED cihazi hazir DEGIL");
 	}
 
+	if (gpio_is_ready_dt(&servo)) {
+		gpio_pin_configure_dt(&servo, GPIO_OUTPUT_INACTIVE);
+		LOG_INF("servo pini hazir");
+	} else {
+		LOG_ERR("servo pini hazir DEGIL");
+	}
+
 	for (int i = 0; i < 4; i++) {
 		if (!gpio_is_ready_dt(&mtr[i])) {
 			LOG_ERR("motor pin %d hazir DEGIL", i);
@@ -561,6 +636,10 @@ int main(void)
 	k_thread_create(&motor_thread_data, motor_stack, MOTOR_STACK_SIZE,
 			motor_thread, NULL, NULL, NULL,
 			K_PRIO_COOP(5), 0, K_NO_WAIT);
+
+	k_thread_create(&servo_thread_data, servo_stack, SERVO_STACK_SIZE,
+			servo_thread, NULL, NULL, NULL,
+			K_PRIO_COOP(4), 0, K_NO_WAIT);
 
 	k_thread_create(&thread_mng_data, thread_mng_stack, APP_TASK_STACK_SIZE,
 			rpmsg_mng_task,

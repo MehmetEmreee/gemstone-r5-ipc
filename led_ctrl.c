@@ -72,12 +72,15 @@ static void usage(const char *prog)
 		"  %s ping\n"
 		"  %s led <0|1>\n"
 		"  %s ledget\n"
+		"  %s servo <0-180>\n"
+		"  %s sget\n"
+		"  %s soff\n"
 		"  %s step <adim>      (+ileri, -geri; 4096 = 1 tur)\n"
 		"  %s speed <us>       (adim arasi mikrosaniye, min 1000)\n"
 		"  %s mstop\n"
 		"  %s mget\n"
 		"  %s raw <type> <id> <value>\n",
-		prog, prog, prog, prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
 }
 
 int main(int argc, char *argv[])
@@ -101,7 +104,15 @@ int main(int argc, char *argv[])
 		cmd.value = atoi(argv[2]);
 	} else if (strcmp(argv[1], "ledget") == 0) {
 		cmd.type = CMD_LED_GET;
-		} else if (strcmp(argv[1], "step") == 0) {
+	} else if (strcmp(argv[1], "servo") == 0) {
+		if (argc < 3) { usage(argv[0]); return 1; }
+		cmd.type  = CMD_SERVO_SET;
+		cmd.value = atoi(argv[2]);
+	} else if (strcmp(argv[1], "sget") == 0) {
+		cmd.type = CMD_SERVO_GET;
+	} else if (strcmp(argv[1], "soff") == 0) {
+		cmd.type = CMD_SERVO_OFF;
+	} else if (strcmp(argv[1], "step") == 0) {
 		if (argc < 3) { usage(argv[0]); return 1; }
 		cmd.type  = CMD_MOTOR_STEP;
 		cmd.value = atoi(argv[2]);
