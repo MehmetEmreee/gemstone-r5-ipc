@@ -4,16 +4,51 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <linux/rpmsg.h>
 
 #include "ipc_proto.h"
 
-#define RPMSG_DEV   "/dev/rpmsg1"
-#define CTRL_DEV    "/dev/rpmsg_ctrl1"
 #define EPT_NAME    "rpmsg-client-sample"
 #define EPT_DST     0x400
+
+static char rpmsg_dev[64];
+static char ctrl_dev[64];
+
+/* Zephyr'in virtio numarasini sysfs'ten bul.
+ * /sys/bus/rpmsg/devices/ altinda "rpmsg-client-sample" iceren girdiyi ara,
+ * hedef yolunda remoteproc3 (veya hangi remoteproc'ta ise) gecen virtioN'i cek.
+ */
+static int find_virtio_index(void)
+{
+	DIR *d;
+	struct dirent *e;
+	int idx = -1;
+
+	d = opendir("/sys/bus/rpmsg/devices");
+	if (!d) {
+		perror("opendir /sys/bus/rpmsg/devices");
+		return -1;
+	}
+
+	while ((e = readdir(d)) != NULL) {
+		/* ornek: virtio3.rpmsg-client-sample.-1.1024 */
+		if (strstr(e->d_name, EPT_NAME) == NULL)
+			continue;
+		if (sscanf(e->d_name, "virtio%d.", &idx) == 1)
+			break;
+		idx = -1;
+	}
+
+	closedir(d);
+
+	if (idx < 0)
+		fprintf(stderr, "hata: '%s' kanali bulunamadi. "
+				"Zephyr calisiyor mu? (dmesg | grep virtio)\n", EPT_NAME);
+	return idx;
+}
 
 static const char *status_str(uint8_t s)
 {
@@ -31,22 +66,29 @@ static int ensure_endpoint(void)
 {
 	struct rpmsg_endpoint_info ept = {0};
 	struct stat st;
-	int fd, ret;
+	int fd, ret, vidx;
 
-	if (stat(RPMSG_DEV, &st) == 0) {
+	vidx = find_virtio_index();
+	if (vidx < 0)
+		return -1;
+
+	snprintf(ctrl_dev,  sizeof(ctrl_dev),  "/dev/rpmsg_ctrl%d", vidx);
+	snprintf(rpmsg_dev, sizeof(rpmsg_dev), "/dev/rpmsg%d",      vidx);
+
+	if (stat(rpmsg_dev, &st) == 0) {
 		if (S_ISCHR(st.st_mode))
 			return 0;
 
-		fprintf(stderr, "uyari: %s karakter cihazi degil, siliniyor\n", RPMSG_DEV);
-		if (unlink(RPMSG_DEV) < 0) {
-			perror("unlink " RPMSG_DEV);
+		fprintf(stderr, "uyari: %s karakter cihazi degil, siliniyor\n", rpmsg_dev);
+		if (unlink(rpmsg_dev) < 0) {
+			perror("unlink");
 			return -1;
 		}
 	}
 
-	fd = open(CTRL_DEV, O_RDWR);
+	fd = open(ctrl_dev, O_RDWR);
 	if (fd < 0) {
-		perror("open " CTRL_DEV);
+		perror(ctrl_dev);
 		return -1;
 	}
 
@@ -137,9 +179,9 @@ int main(int argc, char *argv[])
 	if (ensure_endpoint() < 0)
 		return 1;
 
-	fd = open(RPMSG_DEV, O_RDWR);
+	fd = open(rpmsg_dev, O_RDWR);
 	if (fd < 0) {
-		perror("open " RPMSG_DEV);
+		perror(rpmsg_dev);
 		return 1;
 	}
 
