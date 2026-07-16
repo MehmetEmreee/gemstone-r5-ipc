@@ -50,11 +50,11 @@ Linux (A53) komutu gönderdikten sonra kendi işine döner; motoru, R5F üzerind
 
 ---
 
-## Neden AMP?
+## Neden (Asymmetric Multi-Processing) AMP ?
 
 Bu projeye başlarken aklımdaki soru şuydu:
 
-> *"Linux tarafım yavaşken bir çekirdeğimi gerçek zamanlı çalıştırmak ne işe yarar? Bir insanın bir bacağı 100 km/s hızla giderken diğeri 60 km/s hızla gidiyorsa, dengeli hareket için 60'a inmek zorunda kalır."*
+> *"Linux tarafım yavaşken bir çekirdeğimi gerçek zamanlı çalıştırmak ne işe yarar? Bir insanın bir bacağı 100 km/s hızla giderken diğeri 60 km/s hızla gidiyorsa, dengeli hareket için 60'a inmek zorunda kalır. 100 km/s hızın ne anlamı kalır ki ?"*
 
 Bu sezgi, iki çekirdeğin aynı işi yaptığı ve birbirini beklediği varsayımına dayanıyor. AMP'nin amacı ise tam olarak bu varsayımı ortadan kaldırmak. Daha doğru bir benzetme, orkestra şefi ile metronom olurdu:
 
@@ -654,7 +654,7 @@ Linux (A53) sends a command and gets back to its own work, while Zephyr on the R
 
 ---
 
-## Why AMP?
+## Why (Asymmetric Multi-Processing) AMP?
 
 The question I started this project with was:
 
